@@ -3,8 +3,10 @@
   "script_url": "https://raw.githubusercontent.com/OWNER/REPOSITORY/refs/heads/main/TSR-Binder.lua",
   "page_url": "https://github.com/OWNER/REPOSITORY",
   "changelog": [
-    "Логов",
-    "тестирование",
-    "Тест"
+    "Добавлена проверка обновлений через GitHub",
+    "Добавлено окно обновления с выводом версии и changelog",
+    "Скрипт переведен на стабильное имя TSR-Binder.lua",
+    "Исправлена работа логов при завершении скрипта",
+    "Улучшена стабильность сохранения и перезагрузки"
   ]
 }

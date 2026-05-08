@@ -1,7 +1,7 @@
 script_name("TSR-Binder")
 script_author("Guonith & !.Dyshno")
-script_version("v1.9.1")
-SCRIPT_VERSION = "v1.9.1"  
+script_version("v1.9.2")
+SCRIPT_VERSION = "v1.9.2"  
 SCRIPT_ACTIVE  = true  
 
 require "lib.moonloader"
@@ -35,11 +35,37 @@ LOG_FILE   = ""
 local RADIO_FILE = ""
 local LOG_READABLE_FILE = ""
 local RADIO_READABLE_FILE = ""
-local UPDATE_METADATA_URL = ""
+local UPDATE_METADATA_URL = "https://raw.githubusercontent.com/Guonith/TSR-Binder/main/version.json"
 local UPDATE_HTTP_HEADERS = {
   ["User-Agent"] = "TSR-Binder-Updater",
   ["Cache-Control"] = "no-cache",
 }
+local FAQ_TEXT = [[
+FAQ
+
+TSR-Binder — многофункциональный биндер для Arizona RP.
+
+Основные возможности:
+• Удобная система биндов
+• AUTO-MSG
+• Авто RP отыгровки
+• Smart Invite
+• D-Reply система
+• Логи поставок и рации
+• Гибкая настройка интерфейса
+• Система тем
+
+Команда активации:
+• /tsr — открыть биндер
+Или по нажатию клавиши HOME/[Ваша клавиша для активации]
+
+Информация:
+Made By Guonith & !.Dyshno 
+[aka William_DeCasto & Eternal_Style]
+При поддержке Vadim_DeSanta
+
+Спасибо за использование TSR-Binder .
+]]
 BUF           = 256
 
 KEY_MAP = {
@@ -526,6 +552,7 @@ showCheatsheet    = imgui.new.bool(false)
 showDWindow       = imgui.new.bool(false)
 showLogs          = imgui.new.bool(false)
 showUpdateWindow  = imgui.new.bool(false)
+showFaqWindow     = imgui.new.bool(false)
 updateState = {
   checking        = false,
   downloading     = false,
@@ -847,6 +874,34 @@ local function saveRadioLogNow()
   end
 end
 
+local function setBinderVisible(state)
+  SCRIPT_ACTIVE = true
+  if state == nil then
+    showMain[0] = not showMain[0]
+  else
+    showMain[0] = state and true or false
+  end
+end
+
+local function targetMatchesFraction(target, fracId)
+  target = tostring(target or "")
+  fracId = tostring(fracId or "")
+  if target == "" or fracId == "" then return false end
+
+  for _, fr in ipairs(FRAC_REGISTRY) do
+    if fr.id == fracId then
+      for _, variant in ipairs(fr.variants or {}) do
+        if strContains(target, tostring(variant or "")) then
+          return true
+        end
+      end
+      break
+    end
+  end
+
+  return strContains(target, fracId)
+end
+
 local function readWholeFile(path)
   local f = io.open(path, "rb")
   if not f then return nil end
@@ -880,6 +935,13 @@ local function normalizeVersion(ver)
   ver = tostring(ver or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
   ver = ver:gsub("^version%s*", ""):gsub("^ver%s*", ""):gsub("^v", "")
   return ver
+end
+
+local function normalizeGitHubRawUrl(url)
+  url = tostring(url or "")
+  url = url:gsub("raw%.githubusercontent%.com/([^/]+)/([^/]+)/refs/heads/([^/]+)/", "raw.githubusercontent.com/%1/%2/%3/")
+  url = url:gsub("github%.com/([^/]+)/([^/]+)/raw/refs/heads/([^/]+)/", "raw.githubusercontent.com/%1/%2/%3/")
+  return url
 end
 
 local function compareVersions(currentVer, remoteVer)
@@ -952,9 +1014,8 @@ local function beginUpdateCheck()
   updateState.statusText = u8"Проверка обновлений..."
   updateState.changelogText = u8"Загрузка информации с GitHub..."
   lua_thread.create(function()
-    local ok, response = pcall(requests.get, UPDATE_METADATA_URL, {
+    local ok, response = pcall(requests.get, normalizeGitHubRawUrl(UPDATE_METADATA_URL), {
       headers = UPDATE_HTTP_HEADERS,
-      allow_redirects = true,
       timeout = 15,
     })
     if not ok or not response then
@@ -984,7 +1045,7 @@ local function beginUpdateCheck()
       return
     end
     local remoteVersion = tostring(meta.version or meta.latest_version or meta.tag or "")
-    local scriptUrl = tostring(meta.script_url or meta.download_url or meta.url or "")
+    local scriptUrl = normalizeGitHubRawUrl(meta.script_url or meta.download_url or meta.url or "")
     local pageUrl = tostring(meta.page_url or meta.release_url or meta.github_url or "")
     updateState.remoteVersion = remoteVersion ~= "" and remoteVersion or "-"
     updateState.scriptUrl = scriptUrl
@@ -1027,9 +1088,8 @@ local function beginUpdateInstall()
   updateState.statusText = u8"Загрузка новой версии..."
   updateState.lastError = ""
   lua_thread.create(function()
-    local ok, response = pcall(requests.get, updateState.scriptUrl, {
+    local ok, response = pcall(requests.get, normalizeGitHubRawUrl(updateState.scriptUrl), {
       headers = UPDATE_HTTP_HEADERS,
-      allow_redirects = true,
       timeout = 20,
     })
     if not ok or not response then
@@ -1668,8 +1728,11 @@ function main()
   loadUserThemes(); loadBinds(); loadAuto(); loadCheatsheet(); loadNotes(); pcall(loadTheme); pcall(loadSinvite); sinviteInitBufs(); pcall(loadTimeRp); pcall(loadRp)
   ffi.fill(timeRp.inMe, 256, 0); ffi.copy(timeRp.inMe, timeRp.meText, math.min(#timeRp.meText, 255))
   ffi.fill(timeRp.inDo, 256, 0); ffi.copy(timeRp.inDo, timeRp.doText, math.min(#timeRp.doText, 255))
-  sampAddChatMessage("{FFD700}[TSR-Binder]{FFFFFF} Loaded successfully, Press HOME to activate.", -1)
-  sampAddChatMessage("{FFD700}[TSR-Binder]{FFFFFF} Made By Guonith | aka William_DeCasto | Fr Scottdale 03.", -1)
+  sampAddChatMessage("{FFD700}[TSR-Binder]{FFFFFF} Loaded successfully, Print /tsr or Press HOME to activate.", -1)
+  sampAddChatMessage("{FFD700}[TSR-Binder]{FFFFFF} Greetings Fr Scottdale 03.", -1)
+  sampRegisterChatCommand("tsr", function()
+    setBinderVisible(true)
+  end)
 
   SCRIPT_ACTIVE = true
   while true do
@@ -1694,7 +1757,7 @@ function main()
         end
       end
     elseif wasKeyPressed(TOGGLE_KEY) and isGameFocused() then
-      showMain[0] = not showMain[0]
+      setBinderVisible()
     end
 
 
@@ -1813,7 +1876,7 @@ function onWindowMessage(msg, wparam, lparam)
   if not SCRIPT_ACTIVE then return end
   if msg == WM_KEYDOWN and wparam == VK_ESCAPE then
     if showMain[0] then
-      showMain[0] = false
+      setBinderVisible(false)
       consumeWindowMessage(true, false)  -- блокируем Escape, игра не получит его
     end
     -- если биндер закрыт — не блокируем, Escape уйдёт в игру и откроет паузу
@@ -1986,20 +2049,6 @@ sampev.onSendCommand = function(cmd)
     end)
   end
 end
-
-function onScriptTerminate(script, quitGame)
-  if script ~= thisScript() then return end
-  if deliveryLogDirty then
-    saveDeliveryLogNow()
-    deliveryLogDirty = false
-  end
-  if radioLogDirty then
-    saveRadioLogNow()
-    radioLogDirty = false
-  end
-  exportReadableLogs()
-end
-
 
 _cv_u = iconv.new("UTF-8", "CP1251")
 sampev.onServerMessage = function(color, msg)
@@ -2222,26 +2271,8 @@ sampev.onServerMessage = function(color, msg)
         if dAutoOpen == 1 then
           shouldOpen = true
         elseif dAutoOpen == 2 then
-          -- Открываем только если to совпадает с нашей фракцией по реестру
           if myFraction ~= "" then
-            local toRaw = (to or ""):lower()
-            -- Ищем нашу фракцию в реестре
-            for _, fr in ipairs(FRAC_REGISTRY) do
-              if fr.id == myFraction then
-                for _, v in ipairs(fr.variants) do
-                  if toRaw == v or toRaw:find(v, 1, true) then
-                    shouldOpen = true
-                    break
-                  end
-                end
-                break
-              end
-            end
-            -- Также проверяем прямое совпадение (id в любом регистре)
-            if not shouldOpen then
-              local frLow = myFraction:lower()
-              shouldOpen = (toRaw == frLow) or (toRaw:find(frLow, 1, true) ~= nil)
-            end
+            shouldOpen = targetMatchesFraction(to, myFraction)
           end
         end
         if shouldOpen then
@@ -2400,7 +2431,7 @@ function drawMainWindow(self)
 
     imgui.SetNextWindowPos(imgui.ImVec2(30, 100), imgui.Cond.FirstUseEver)
     imgui.SetNextWindowSizeConstraints(imgui.ImVec2(300, 100), imgui.ImVec2(380, 700))
-    imgui.Begin(u8"TSR-BINDER " .. SCRIPT_VERSION .. " | Made By Guonith & !.Dyshno", showMain, imgui.WindowFlags.NoScrollbar)
+    imgui.Begin(u8"TSR-BINDER " .. SCRIPT_VERSION .. " | Perfection is endless.", showMain, imgui.WindowFlags.NoScrollbar)
 
     -- таймеры сессия/неделя
     do
@@ -2881,6 +2912,19 @@ function drawMainWindow(self)
 
     if activeTab == 3 then
       imgui.PushStyleColor(imgui.Col.Separator, imgui.ImVec4(1.0, 1.0, 1.0, 0.18))
+      imgui.Spacing()
+      imgui.PushStyleColor(imgui.Col.Button,        v4(T.btn, 0.90))
+      imgui.PushStyleColor(imgui.Col.ButtonHovered, v4(T.btnh))
+      imgui.PushStyleColor(imgui.Col.ButtonActive,  v4(T.btna))
+      if imgui.Button("FAQ##openfaq", imgui.ImVec2(36, 18)) then
+        showFaqWindow[0] = true
+      end
+      if imgui.IsItemHovered() then
+        imgui.BeginTooltip()
+        imgui.Text("FAQ")
+        imgui.EndTooltip()
+      end
+      imgui.PopStyleColor(3)
       imgui.Spacing()
 
       local function settingRow(label, state, labelOn, labelOff, extraBtn)
@@ -3708,9 +3752,9 @@ function drawAutoEditor(self)
 
     local title = (aed.mode=="new") and u8"НОВОЕ АВТО-MSG" or u8"РЕДАКТИРОВАТЬ АВТО-MSG"
     imgui.SetNextWindowPos(imgui.ImVec2(310, 100), imgui.Cond.FirstUseEver)
-    imgui.SetNextWindowSize(imgui.ImVec2(480, 0), imgui.Cond.FirstUseEver)
+    imgui.SetNextWindowSize(imgui.ImVec2(520, 0), imgui.Cond.FirstUseEver)
     imgui.SetNextWindowSizeConstraints(imgui.ImVec2(420, 100), imgui.ImVec2(600, 800))
-    imgui.Begin(title, showAutoEditor, imgui.WindowFlags.NoScrollbar)
+    imgui.Begin(title, showAutoEditor)
 
     imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(1.0, 0.80, 0.0, 1.0))
     imgui.Text(u8"Название таймера:")
@@ -3732,6 +3776,9 @@ function drawAutoEditor(self)
 
     local aedToDelete = nil
     local aedSwapIdx, aedSwapDir = nil, 0
+    local rowsChildH = math.min(math.max(#aed.rows * 26 + 8, 110), 280)
+    imgui.PushStyleColor(imgui.Col.ChildBg, imgui.ImVec4(0, 0, 0, 0.18))
+    imgui.BeginChild("##auto_msg_rows", imgui.ImVec2(-1, rowsChildH), true)
     for i, row in ipairs(aed.rows) do
       imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(0.55,0.55,0.55,1.0))
       imgui.Text(string.format("%2d", i))
@@ -3739,7 +3786,7 @@ function drawAutoEditor(self)
       imgui.SameLine()
       imgui.PushStyleColor(imgui.Col.FrameBg,        v4(T.au_frame))
       imgui.PushStyleColor(imgui.Col.FrameBgHovered, v4(T.au_frameh))
-      imgui.PushItemWidth(imgui.GetWindowWidth() - 140)
+      imgui.PushItemWidth(imgui.GetWindowWidth() - 182)
       imgui.InputText("##at"..i, row.textBuf, BUF)
       imgui.PopItemWidth()
       imgui.SameLine()
@@ -3764,6 +3811,8 @@ function drawAutoEditor(self)
       if imgui.Button("X##ax"..i, imgui.ImVec2(18, 20)) and #aed.rows > 1 then aedToDelete=i end
       imgui.PopStyleColor(2)
     end
+    imgui.EndChild()
+    imgui.PopStyleColor()
     if aedToDelete then table.remove(aed.rows, aedToDelete) end
     if aedSwapIdx then
       local j = aedSwapIdx + aedSwapDir
@@ -4436,13 +4485,13 @@ imgui.OnFrame(
     imgui.PushStyleColor(imgui.Col.ChildBg, imgui.ImVec4(0, 0, 0, 0.20))
     imgui.BeginChild("##updatecontent", imgui.ImVec2(-1, contentH), false)
     imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(0.70, 0.85, 1.0, 1.0))
-    imgui.Text(u8"New version: " .. tostring(updateState.remoteVersion or "-"))
+    imgui.Text(u8"Новая версия: " .. tostring(updateState.remoteVersion or "-"))
     imgui.PopStyleColor()
     imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(0.70, 0.70, 0.70, 1.0))
-    imgui.TextWrapped(updateState.statusText or u8"Waiting for update check.")
+    imgui.TextWrapped(updateState.statusText or u8"Ожидание проверки обновления.")
     imgui.PopStyleColor()
     imgui.Spacing()
-    imgui.TextWrapped(updateState.changelogText or u8"Loading update information...")
+    imgui.TextWrapped(updateState.changelogText or u8"Загрузка информации об обновлении...")
     if false then
     imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(0.75, 0.75, 0.75, 1.0))
     -- Placeholder — сюда будет подтягиваться текст с GitHub
@@ -4486,5 +4535,38 @@ imgui.OnFrame(
 
     imgui.End()
     imgui.PopStyleColor(5)
+  end
+)
+
+imgui.OnFrame(
+  function() return showFaqWindow[0] end,
+  function(self)
+    self.HideCursor = false
+    imgui.PushStyleColor(imgui.Col.WindowBg,      imgui.ImVec4(0.05, 0.05, 0.07, 0.97))
+    imgui.PushStyleColor(imgui.Col.TitleBgActive, v4(T.titlehi))
+    imgui.PushStyleColor(imgui.Col.TitleBg,       v4(T.titlebg))
+    imgui.PushStyleColor(imgui.Col.Border,        v4(T.btn, 0.60))
+    imgui.PushStyleColor(imgui.Col.Separator,     v4(T.sep, 0.35))
+    imgui.PushStyleColor(imgui.Col.ChildBg,       imgui.ImVec4(0, 0, 0, 0.18))
+
+    imgui.SetNextWindowSize(imgui.ImVec2(520, 380), imgui.Cond.FirstUseEver)
+    imgui.SetNextWindowPos(imgui.ImVec2(240, 140), imgui.Cond.FirstUseEver)
+    imgui.Begin(u8"TSR-Binder - FAQ", showFaqWindow)
+
+    imgui.PushStyleColor(imgui.Col.Text, imgui.ImVec4(0.90, 0.90, 0.90, 1.0))
+    imgui.BeginChild("##faq_text", imgui.ImVec2(-1, -36), true)
+    imgui.TextWrapped(u8(FAQ_TEXT))
+    imgui.EndChild()
+    imgui.PopStyleColor()
+
+    imgui.PushStyleColor(imgui.Col.Button,        v4(T.btnneg3, 0.90))
+    imgui.PushStyleColor(imgui.Col.ButtonHovered, v4(T.btnneg3h))
+    if imgui.Button(u8"Закрыть##closefaq", imgui.ImVec2(-1, 26)) then
+      showFaqWindow[0] = false
+    end
+    imgui.PopStyleColor(2)
+
+    imgui.End()
+    imgui.PopStyleColor(6)
   end
 )

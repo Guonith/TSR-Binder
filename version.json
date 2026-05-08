@@ -1,7 +1,7 @@
 {
   "version": "v1.9.2",
-  "script_url": "https://raw.githubusercontent.com/OWNER/REPOSITORY/refs/heads/main/TSR-Binder.lua",
-  "page_url": "https://github.com/OWNER/REPOSITORY",
+  "script_url": "https://raw.githubusercontent.com/Guonith/TSR-Binder/main/TSR-Binder.lua",
+  "page_url": "https://github.com/Guonith/TSR-Binder",
   "changelog": [
     "Добавлена проверка обновлений через GitHub",
     "Добавлено окно обновления с выводом версии и changelog",
